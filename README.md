@@ -147,3 +147,129 @@ Once your sequence files and models are ready, you can move to IQTree for more c
 - You can also use `ggtree` or `ggplot2` for more customized and publication-quality plots.
 
 ---
+
+###  **K-Means Clustering and Saving Cluster Members to CSV**
+
+---
+
+### **1. Load Required Libraries**
+
+```r
+# Load the required libraries
+library(tidyverse)  # For data manipulation and visualization
+library(cluster)    # For clustering algorithms
+library(factoextra)  # For clustering visualization and finding the optimal number of clusters
+library(readr)      # For reading CSV files
+```
+
+---
+
+### **2. Read Data and Handle Missing Values**
+
+```r
+# Set working directory
+setwd("your working directory")
+
+# Read in the data
+data <- read_csv("aalogdet_coord.csv")
+
+# Check the structure and head of the data to understand its content
+str(data)
+head(data)
+
+# Handle missing values by removing rows with NA (alternative: consider imputation)
+data <- na.omit(data)  # This removes rows with any NA values
+```
+
+---
+
+### **3. Feature Selection and Scaling**
+
+```r
+# Select the relevant features for clustering (dim.1 and dim.2)
+features <- select(data, dim.1, dim.2)
+
+# Scale the selected features to standardize the values for clustering
+scaled_features <- scale(features)
+```
+
+---
+
+### **4. Determining the Optimal Number of Clusters Using Elbow Method**
+
+```r
+# Visualize the Elbow Method to find the optimal number of clusters
+fviz_nbclust(scaled_features, kmeans, method = "wss") +
+  geom_vline(xintercept = 12, linetype = 2) +  # Adjust based on observation
+  labs(subtitle = "Elbow Method for Optimal Clusters")
+```
+- **Note:** Inspect the plot and adjust the `geom_vline(xintercept)` based on where the "elbow" is located, i.e., where the reduction in WSS starts to slow down.
+  
+---
+
+### **5. K-Means Clustering**
+
+```r
+# Set a seed for reproducibility
+set.seed(42)
+
+# Determine the optimal number of clusters from the Elbow Method visualization
+optimal_clusters <- 11  # Adjust this based on the Elbow Method result
+
+# Perform K-Means clustering
+kmeans_result <- kmeans(scaled_features, centers = optimal_clusters, nstart = 25)
+
+# Append cluster labels to the original data
+data$Cluster <- kmeans_result$cluster
+```
+
+---
+
+### **6. Cluster Visualization**
+
+```r
+# Visualize the clustering results
+fviz_cluster(kmeans_result, data = scaled_features, geom = "point", stand = FALSE) +
+  ggtitle("K-Means Cluster Visualization") +
+  theme_minimal() +  # Apply a cleaner theme
+  scale_color_brewer(palette = "Set2")  # Optional: improve visualization with color palettes
+```
+
+- **Improvement:** I added `theme_minimal()` and a color palette `scale_color_brewer()` to make the plot visually clearer.
+
+---
+
+### **7. Centroid Distance Calculation**
+
+```r
+# Extract the centroids from the K-Means result
+centroids <- kmeans_result$centers
+
+# Calculate the pairwise distances between centroids
+centroid_distances <- dist(centroids)
+
+# Convert the distance object to a matrix for easier interpretation
+centroid_distance_matrix <- as.matrix(centroid_distances)
+
+# Print the centroid distance matrix
+print(centroid_distance_matrix)
+```
+
+---
+
+### **8. Save Cluster Members to Separate CSV Files**
+
+```r
+# Check if the directory for saving cluster files exists, create if not
+if (!dir.exists("new_clusters_files2")) {
+  dir.create("new_clusters_files2")
+}
+
+# Loop through each cluster and save members to separate CSV files
+for (i in 1:optimal_clusters) {
+  cluster_members <- data[data$Cluster == i, ]
+  write_csv(cluster_members, paste0("new_clusters_files2/cluster_", i, "_members.csv"))
+}
+```
+
+---
